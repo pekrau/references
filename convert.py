@@ -3,6 +3,7 @@
 from pathlib import Path
 import string
 import sys
+import unicodedata
 
 import bibtexparser
 import pyperclip
@@ -47,6 +48,14 @@ def cleanup_whitespaces(value):
     "Replace all whitespaces with blanks."
     return " ".join(value.split())
 
+def to_stem(s):
+    """- Convert all non-ASCII characters to closest ASCII
+    - Lowercase
+    - Replace blank with dash
+    """
+    s = unicodedata.normalize("NFKD", s).encode("ASCII", "ignore").decode("utf-8")
+    return s.lower().replace(" ", "-")
+
 
 db = bibtexparser.loads(pyperclip.paste())
 
@@ -81,17 +90,17 @@ for entry in db.entries:
         data["abstract"] = cleanup_latex(cleanup_whitespaces(abstract))
 
     name = f'{data["authors"][0].split(",")[0]} {data["year"]}'
-    lowname = name.casefold().replace(" ", "-")
+    stem = to_stem(name)
 
     # Is there a set of references for the same year?
-    if (filename := Path(f"{lowname}a.yaml")).exists():
+    if (filename := Path(f"{stem}a.yaml")).exists():
         for suffix in string.ascii_lowercase:
-            if not (filename := Path(f"{lowname}{suffix}.yaml")).exists():
+            if not (filename := Path(f"{stem}{suffix}.yaml")).exists():
                 name = name + suffix
                 break
 
     # Is there a previous reference?
-    elif (filename := Path(f"{lowname}.yaml")).exists():
+    elif (filename := Path(f"{stem}.yaml")).exists():
         print(" ", filename, "already exists")
         if input("overwrite it? > ") in "yYjJ":
             pass
@@ -99,15 +108,15 @@ for entry in db.entries:
             with open(filename) as infile:
                 data2 = yaml.safe_load(infile)
             data2["name"] = data2["name"] + "a"
-            lowname2 = data2["name"].casefold().replace(" ", "-")
-            filename2 = Path(f"{lowname2}.yaml")
+            stem2 = data2["name"].casefold().replace(" ", "-")
+            filename2 = Path(f"{stem2}.yaml")
             with open(filename2, "w") as outfile:
                 outfile.write(yaml.dump(data2, allow_unicode=True))
             filename.unlink()
             print(f"renamed {filename} to {filename2}")
             name = name + "b"
-            lowname = name.casefold().replace(" ", "-")
-            filename = Path(f"{lowname}.yaml")
+            stem = name.casefold().replace(" ", "-")
+            filename = Path(f"{stem}.yaml")
         else:
             print("no action; reference not saved")
             sys.exit()

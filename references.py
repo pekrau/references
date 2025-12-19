@@ -1,8 +1,18 @@
 "Reference database handler."
 
 from pathlib import Path
+import unicodedata
 
 import yaml
+
+
+def to_stem(s):
+    """- Convert all non-ASCII characters to closest ASCII
+    - Lowercase
+    - Replace blank with dash
+    """
+    s = unicodedata.normalize("NFKD", s).encode("ASCII", "ignore").decode("utf-8")
+    return s.lower().replace(" ", "-")
 
 
 class References:
@@ -28,7 +38,7 @@ class References:
                     except KeyError:
                         raise KeyError(f"missing 'name' in {filepath}")
                     name = name.casefold()
-                    if name.replace(" ", "-") != filepath.stem:
+                    if to_stem(name) != filepath.stem:
                         raise ValueError(f"name/filename mismatch for {filepath}")
                     if name in self.items:
                         raise KeyError(f"reference name {name} already defined")
